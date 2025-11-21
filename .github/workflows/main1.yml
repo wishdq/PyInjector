@@ -1,0 +1,49 @@
+name: Build PyInjector for Windows x64
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest]
+        arch: [x64]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup MSVC and Visual Studio
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Restore NuGet packages (if any)
+      run: nuget restore
+
+    - name: Build project (x64 Release)
+      run: |
+        msbuild PyInjector.sln /p:Configuration=Release /p:Platform=${{ matrix.arch }} /t:Rebuild /m
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: PyInjector-${{ matrix.arch }}-DLL
+        path: |
+          ${{ matrix.arch }}/Release/*.dll
+          ${{ matrix.arch }}/Release/*.pdb
+        retention-days: 30
+
+    - name: List build output (for debugging)
+      if: always()
+      shell: pwsh
+      run: |
+        if (Test-Path "${{ matrix.arch }}\Release\") {
+          Get-ChildItem -Path "${{ matrix.arch }}\Release\" -Recurse -Name
+        } else {
+          Write-Output "Directory not found: ${{ matrix.arch }}\Release\"
+        }
